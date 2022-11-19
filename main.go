@@ -1,5 +1,9 @@
 package main
 
-func main() {
+import (
+	"jasonLuFa/simpleLine-Webhook/cmd"
+)
 
+func main() {
+	cmd.Execute()
 }
