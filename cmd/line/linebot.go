@@ -50,6 +50,8 @@ var LinebotCmd = &cobra.Command{
 		userMessageController = controller.NewUserMessageController(userMessageService)
 		server.POST("/callback", callbackHandler())
 
+		basepath := server.Group("/v1")
+		userMessageController.RegisterUserMessageRoutes(basepath)
 		log.Fatal(server.Run(":" + config.Port))
 	},
 }
