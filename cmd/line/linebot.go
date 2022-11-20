@@ -1,11 +1,11 @@
 package line
 
 import (
-	"context"
-	"jasonLuFa/simpleLine-Webhook/controller"
+	api "jasonLuFa/simpleLine-Webhook/api"
 	dto "jasonLuFa/simpleLine-Webhook/model/DTO"
+	"jasonLuFa/simpleLine-Webhook/save"
 	"jasonLuFa/simpleLine-Webhook/save/query"
-	"jasonLuFa/simpleLine-Webhook/service"
+	"jasonLuFa/simpleLine-Webhook/util"
 	"log"
 	"net/http"
 
@@ -14,22 +14,16 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 var (
-	server                *gin.Engine
-	userMessageService    service.UserMessageService
-	userMessageController controller.UserMessageController
 	userMessageRepository query.IUserMessageRepository
-	ctx                   context.Context
+	// ctx                   context.Context
 	userMessageCollection *mongo.Collection
-	mongoClient           *mongo.Client
 	err                   error
 	channel_access_token  string
 	bot                   *linebot.Client
-	config                Config
+	config                util.Config
 )
 
 // LinebotCmd represents the linebot command
@@ -38,49 +32,33 @@ var LinebotCmd = &cobra.Command{
 	Short: "linebot is a palette that contains linebot based commands",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
+		config, err = util.LoadConfig(".")
+		if err != nil {
+			log.Fatal("cannot load config", err)
+		}
+		mongoClient, ctx := save.InitMongo(config)
+
+		viper.Set("channel_access_token", channel_access_token)
+
 		bot, err = linebot.New(
 			config.ChannelSecret,
 			channel_access_token,
 		)
-		viper.Set("channel_access_token", channel_access_token)
+		if err != nil {
+			log.Fatal("new linebot err : ", err)
+		}
 
-		server = gin.Default()
-		userMessageRepository = query.NewUserMessageRepository(userMessageCollection, ctx)
-		userMessageService = service.NewUserMessageService(userMessageRepository)
-		userMessageController = controller.NewUserMessageController(userMessageService)
-		server.POST("/callback", callbackHandler())
+		userMessageRepository = query.NewUserMessageRepository(mongoClient, ctx)
+		server, _ := api.NewServer(userMessageRepository)
+		server.Router.POST("/callback", callbackHandler())
 
-		basepath := server.Group("/v1")
-		userMessageController.RegisterUserMessageRoutes(basepath)
-		log.Fatal(server.Run(":" + config.Port))
+		log.Fatal(server.Router.Run(":" + config.Port))
 	},
 }
 
 func init() {
-	config, err = LoadConfig(".")
-	if err != nil {
-		log.Fatal("cannot load config", err)
-	}
-
-	ctx = context.TODO()
-	mongoConn := options.Client().ApplyURI(config.DBSource)
-	mongoClient, err = mongo.Connect(ctx, mongoConn)
-	if err != nil {
-		log.Fatal("error while connecting with mongo", err)
-	}
-
-	// Know if a MongoDB server has been found and connected to
-	err = mongoClient.Ping(ctx, readpref.Primary())
-	if err != nil {
-		log.Fatal("error while trying to ping mongo", err)
-	}
-
-	log.Println("mongo connection established")
-
-	//
 	LinebotCmd.Flags().StringVarP(&channel_access_token, "channel_access_token", "t", "", "set the channel access token")
 
-	userMessageCollection = mongoClient.Database("userMessage").Collection("userMessages")
 }
 
 // linebot callback handler
@@ -127,26 +105,4 @@ func callbackHandler() gin.HandlerFunc {
 			}
 		}
 	}
-}
-
-type Config struct {
-	DBSource      string `mapstructure:"DB_SOURCE"`
-	Port          string `mapstructure:"PORT"`
-	ChannelSecret string `mapstructure:"CHANNEL_SECRET"`
-}
-
-func LoadConfig(path string) (config Config, err error) {
-	viper.AddConfigPath(path)
-	viper.SetConfigName("app")
-	viper.SetConfigType("env")
-
-	viper.AutomaticEnv()
-
-	err = viper.ReadInConfig()
-	if err != nil {
-		return
-	}
-
-	err = viper.Unmarshal(&config)
-	return
 }

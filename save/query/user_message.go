@@ -18,7 +18,8 @@ type UserMessageRepository struct {
 	ctx                   context.Context
 }
 
-func NewUserMessageRepository(userMessageCollection *mongo.Collection, ctx context.Context) IUserMessageRepository {
+func NewUserMessageRepository(mongoClient *mongo.Client, ctx context.Context) IUserMessageRepository {
+	userMessageCollection := mongoClient.Database("userMessage").Collection("userMessages")
 	return &UserMessageRepository{
 		userMessageCollection: userMessageCollection,
 		ctx:                   ctx,
