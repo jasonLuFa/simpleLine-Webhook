@@ -1,4 +1,4 @@
-name: Go
+name: Run unit tests
 
 on:
   push:
@@ -11,8 +11,8 @@ jobs:
     name: Test
     strategy:
       matrix:
-        go-version: [1.19.x]
-        mongodb-version: ["4.4"]
+        go-version: [1.19]
+        mongodb-version: [4.4]
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
 
