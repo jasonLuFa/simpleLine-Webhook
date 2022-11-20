@@ -6,6 +6,7 @@
 - Create a API send message back to line
 - Create a API query message list of the user from MongoDB
 
+
 ## :clapper: Demo
 
 https://user-images.githubusercontent.com/52907691/202882712-050086ea-95f4-4380-abbf-7c0b82d6d76a.mp4
@@ -29,4 +30,5 @@ https://user-images.githubusercontent.com/52907691/202882712-050086ea-95f4-4380-
 1. [Viper](https://github.com/spf13/viper)
 1. [mongo-go-driver](https://github.com/mongodb/mongo-go-driver)
 1. [cobra](https://github.com/spf13/cobra)
-
+1. [gomock](https://github.com/golang/mock)
+1. [stretchr/testify](https://github.com/stretchr/testify)
