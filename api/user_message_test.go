@@ -13,16 +13,19 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 )
 
+var testAmount = 3
+
 func TestListUserMessageAPI(t *testing.T) {
 	userId := util.RandomStringAndNumber(33)
 	userName := util.RandomString(5)
-	n := 5
-	userMessages := make([]*dto.UserMessage, n)
-	for i := 0; i < n; i++ {
+	testAmount := 5
+	userMessages := make([]*dto.UserMessage, testAmount)
+	for i := 0; i < testAmount; i++ {
 		userMessages[i] = randomUserMessage(userId, userName)
 	}
 
@@ -30,7 +33,7 @@ func TestListUserMessageAPI(t *testing.T) {
 		name          string
 		userId        string
 		buildStubs    func(iUserMessageRepository *mockdb.MockIUserMessageRepository)
-		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
+		checkResponse func(recorder *httptest.ResponseRecorder)
 	}{
 		{
 			name:   "ok",
@@ -38,7 +41,7 @@ func TestListUserMessageAPI(t *testing.T) {
 			buildStubs: func(iUserMessageRepository *mockdb.MockIUserMessageRepository) {
 				iUserMessageRepository.EXPECT().List(gomock.Any()).Times(1).Return(userMessages, nil)
 			},
-			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
 				requireBodyMatchUserMessages(t, recorder.Body, userMessages)
 			},
@@ -49,7 +52,7 @@ func TestListUserMessageAPI(t *testing.T) {
 			buildStubs: func(iUserMessageRepository *mockdb.MockIUserMessageRepository) {
 				iUserMessageRepository.EXPECT().List(gomock.Any()).Times(1).Return([]*dto.UserMessage{}, sql.ErrConnDone)
 			},
-			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusInternalServerError, recorder.Code)
 			},
 		},
@@ -73,8 +76,60 @@ func TestListUserMessageAPI(t *testing.T) {
 
 			recorder := httptest.NewRecorder()
 			server.Router.ServeHTTP(recorder, request)
-			tc.checkResponse(t, recorder)
+			tc.checkResponse(recorder)
 		})
+	}
+}
+
+func TestSendMsgAPI(t *testing.T) {
+	userId := util.RandomStringAndNumber(33)
+	sendMessages := randomMessages()
+
+	testCases := []struct {
+		name          string
+		body          gin.H
+		userId        string
+		checkResponse func(recorder *httptest.ResponseRecorder)
+	}{
+		{
+			name:   "ok",
+			body:   gin.H{"messages": sendMessages},
+			userId: userId,
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusOK, recorder.Code)
+			},
+		}, {
+			name:   "InvalidRequestBody",
+			body:   gin.H{"messages": "invalid"},
+			userId: userId,
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
+	}
+
+	for i := range testCases {
+		tc := testCases[i]
+
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			iUserMessageRepository := mockdb.NewMockIUserMessageRepository(ctrl)
+
+			server := newTestServer(t, iUserMessageRepository)
+
+			data, err := json.Marshal(tc.body)
+			require.NoError(t, err)
+
+			request, err := http.NewRequest("POST", "/v1/users/:userId/user-messages/push", bytes.NewReader(data))
+			require.NoError(t, err)
+
+			recorder := httptest.NewRecorder()
+			server.Router.ServeHTTP(recorder, request)
+			tc.checkResponse(recorder)
+		})
+
 	}
 }
 
@@ -95,4 +150,15 @@ func requireBodyMatchUserMessages(t *testing.T, body *bytes.Buffer, userMessages
 	err = json.Unmarshal(data, &gotUserMessages)
 	require.NoError(t, err)
 	require.Equal(t, userMessages, gotUserMessages)
+}
+
+func randomMessages() []dto.Message {
+	messages := make([]dto.Message, testAmount)
+	for i := 0; i < testAmount; i++ {
+		messages[i] = dto.Message{
+			Type: "text",
+			Text: util.RandomString(20),
+		}
+	}
+	return messages
 }
