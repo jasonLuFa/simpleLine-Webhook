@@ -17,9 +17,9 @@ https://user-images.githubusercontent.com/52907691/202882712-050086ea-95f4-4380-
 
 # :toolbox: Development tool
 
-1. postman
-1. ngrok
-1. mongoDB ( Studio 3T )
+1. postman : test API
+1. ngrok : for local test to generate a https endpoint
+1. mongoDB ( Studio 3T ) : mongo GUI
 1. docker
 1. Makefile
 
@@ -29,4 +29,4 @@ https://user-images.githubusercontent.com/52907691/202882712-050086ea-95f4-4380-
 1. [Viper](https://github.com/spf13/viper)
 1. [mongo-go-driver](https://github.com/mongodb/mongo-go-driver)
 1. [cobra](https://github.com/spf13/cobra)
-   > > > > > > > e5667ec355e362a806549c9ade17d863cdf4a35c
+
